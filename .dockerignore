@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+*.md
+.git
+.gitignore
+frontend/dist
+frontend/node_modules
+backend/dist
+backend/node_modules
+Modelo de datos Actualizado.png
+manual_de_instalacion.txt
+manual_de_usuario.txt
+prompt_mejorado.txt

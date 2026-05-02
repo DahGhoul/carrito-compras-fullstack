@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDIENTE_PAGO
+  PAGADA
+  EN_PROCESO
+  ENVIADA
+  ENTREGADA
+  CANCELADA
+  DEVUELTA
+}
+
+enum InventoryMovementType {
+  ENTRADA
+  SALIDA
+  AJUSTE_POSITIVO
+  AJUSTE_NEGATIVO
+  RESERVA
+  LIBERACION
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  permissions Json?
+  users       UserRole[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("seg_roles")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  phone         String?
+  isActive      Boolean         @default(true)
+  emailVerified Boolean         @default(false)
+  roles         UserRole[]
+  cart          Cart?
+  addresses     Address[]
+  orders        Order[]
+  refreshTokens RefreshToken[]
+  reviews       ProductReview[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("seg_usuarios")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("seg_usuario_rol")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  active      Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("cat_categorias")
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("cat_marcas")
+}
+
+model Product {
+  id               String              @id @default(cuid())
+  sku              String              @unique
+  name             String
+  descriptionShort String?
+  descriptionLong  String?
+  priceCost        Decimal             @db.Decimal(12, 2)
+  priceSale        Decimal             @db.Decimal(12, 2)
+  offerPrice       Decimal?            @db.Decimal(12, 2)
+  stock            Int                 @default(0)
+  stockMin         Int                 @default(0)
+  active           Boolean             @default(true)
+  categoryId       String
+  brandId          String?
+  category         Category            @relation(fields: [categoryId], references: [id])
+  brand            Brand?              @relation(fields: [brandId], references: [id])
+  images           ProductImage[]
+  cartItems        CartItem[]
+  orderItems       OrderItem[]
+  inventoryMoves   InventoryMovement[]
+  reviews          ProductReview[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([name])
+  @@index([categoryId])
+  @@map("cat_productos")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  isMain    Boolean  @default(false)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("cat_imagenes_producto")
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+
+  @@map("ord_carritos")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  unitPrice Decimal  @db.Decimal(12, 2)
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+  @@map("ord_items_carrito")
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String?
+  fullName   String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String
+  phone      String
+  isDefault  Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("cli_direcciones")
+}
+
+model Order {
+  id             String               @id @default(cuid())
+  code           String               @unique
+  userId         String
+  addressId      String?
+  status         OrderStatus          @default(PENDIENTE_PAGO)
+  subtotal       Decimal              @db.Decimal(12, 2)
+  tax            Decimal              @db.Decimal(12, 2)
+  shipping       Decimal              @db.Decimal(12, 2)
+  discount       Decimal              @default(0) @db.Decimal(12, 2)
+  total          Decimal              @db.Decimal(12, 2)
+  paymentMethod  String?
+  paymentStatus  String?
+  notes          String?
+  user           User                 @relation(fields: [userId], references: [id])
+  address        Address?             @relation(fields: [addressId], references: [id])
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("ord_ordenes")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(12, 2)
+  subtotal  Decimal  @db.Decimal(12, 2)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("ord_items_orden")
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(cuid())
+  orderId     String
+  status      OrderStatus
+  oldStatus   OrderStatus?
+  comment     String?
+  changedById String?
+  changedAt   DateTime    @default(now())
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("ord_historial_estados")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@map("seg_refresh_tokens")
+}
+
+model InventoryMovement {
+  id          String                @id @default(cuid())
+  productId   String
+  type        InventoryMovementType
+  quantity    Int
+  reference   String?
+  notes       String?
+  createdById String?
+  product     Product               @relation(fields: [productId], references: [id])
+  createdAt   DateTime              @default(now())
+
+  @@map("inv_movimientos_inventario")
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  comment   String?
+  approved  Boolean  @default(false)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId])
+  @@map("cli_resenas_producto")
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracion_sistema")
+}

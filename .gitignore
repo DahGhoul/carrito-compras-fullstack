@@ -1,0 +1,23 @@
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/dist/
+frontend/dist/
+backend/generated/
+*.log
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+postgres_data/
+pgadmin_data/
+
+# Documentación y archivos pesados
+*.png
+*.jpg
+*.jpeg
+*.txt
+*.pdf
+prompt_mejorado.txt
+Modelo de datos Actualizado.png
